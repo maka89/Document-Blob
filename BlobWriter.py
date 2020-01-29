@@ -9,7 +9,7 @@ from threading import Thread
 
 
 class BlobWriter:
-    def __init__(self,accountname, accountkey, container, blob_name,key, max_blocks=50000):
+    def __init__(self,accountname, accountkey, container, blob_name,key, max_blocks=50000, out_fn=lambda x: json.dumps(x)+ "\n",suffix=".json"):
         self.acc_name = accountname
         self.acc_key = accountkey
         self.container = container
@@ -18,23 +18,23 @@ class BlobWriter:
         self.key = key
         self.blob_name = blob_name
         self.max_blocks = max_blocks
-
-
+        self.out_fn = out_fn
+        self.suffix = suffix
 
         self.all_blobs = [x.name for x in self.bbs.list_blobs(self.container,prefix=self.blob_name) ] 
 
-        if self.blob_name + "_part_1.json" not in self.all_blobs:
+        if self.blob_name + "_part_1"+self.suffix not in self.all_blobs:
             assert(not self.all_blobs)
-            self.bbs.create_blob_from_text(self.container,self.blob_name+"_part_1.json","")
-            self.all_blobs = [self.blob_name + "_part_1.json"]
+            self.bbs.create_blob_from_text(self.container,self.blob_name+"_part_1"+self.suffix,"")
+            self.all_blobs = [self.blob_name + "_part_1"+self.suffix]
         else:
-            newblobs=[self.blob_name + "_part_1.json" ]
+            newblobs=[self.blob_name + "_part_1"+self.suffix ]
             k=2
             while True:
-                if self.blob_name + "_part_{0:}.json".format(k) not in self.all_blobs:
+                if self.blob_name + "_part_{0:}"+self.suffix.format(k) not in self.all_blobs:
                     break
                 else:
-                    newblobs.append(self.blob_name + "_part_{0:}.json".format(k) )
+                    newblobs.append(self.blob_name + "_part_{0:}".format(k)+self.suffix )
                 k+=1
             self.all_blobs=newblobs
         print(self.all_blobs)
@@ -50,14 +50,13 @@ class BlobWriter:
         #Try to update db...
         for n in range(0,len(self.all_blobs)):
 
-            part = "_part_{0:}.json".format(n+1)
-
+            part = "_part_{0:}".format(n+1)+self.suffix
             block_list = self.bbs.get_block_list(self.container,self.blob_name+part,block_list_type="all")
             ids =  list(set([x.id for x in block_list.committed_blocks] + [x.id for x in block_list.committed_blocks]))
 
             common_keys = list(set(data.keys()) & set(ids))
             for j in range(0,len(common_keys)):
-                self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(json.dumps(data[common_keys[j]])+"\r\n"),common_keys[j])
+                self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[common_keys[j]])),common_keys[j])
             new_list = [BlobBlock(ii) for ii in ids]
             self.bbs.put_block_list(self.container,self.blob_name+part,new_list)
 
@@ -69,7 +68,7 @@ class BlobWriter:
         #Try to write new record to one of the existing files...
         if data:
             for n in range(0,len(self.all_blobs)):
-                part = "_part_{0:}.json".format(n+1)
+                part = "_part_{0:}".format(n+1)+self.suffix
 
                 block_list = self.bbs.get_block_list(self.container,self.blob_name+part,block_list_type="all")
                 ids =  list(set([x.id for x in block_list.committed_blocks] + [x.id for x in block_list.committed_blocks]))
@@ -88,7 +87,7 @@ class BlobWriter:
                 new_list = [BlobBlock(ii) for ii in ids]
                 for j in range(0,max_ins):
                     key=keys[j]
-                    self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(json.dumps(data[key])+"\r\n"),key)
+                    self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[key])),key)
                     new_list.append(BlobBlock(key))
                 self.bbs.put_block_list(self.container,self.blob_name+part,new_list)
 
@@ -102,7 +101,7 @@ class BlobWriter:
         while data:
             #Create new file and write record
             nn = len(self.all_blobs)+num_new
-            part = "_part_{0:}.json".format(nn)
+            part = "_part_{0:}".format(nn)+self.suffix
             self.all_blobs.append(self.blob_name+part)
             self.bbs.create_blob_from_text(self.container,self.blob_name+part,"")
             keys = list(data.keys())
@@ -110,7 +109,7 @@ class BlobWriter:
 
             used_keys = []
             for key in keys:
-                self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(json.dumps(data[key])+"\r\n"),key)
+                self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[key])),key)
                 new_list.append(BlobBlock(key))
                 used_keys.append(key)
             self.bbs.put_block_list(self.container,self.blob_name+part,new_list)
@@ -130,7 +129,7 @@ class BlobWriter:
         #Try to update db...
         for n in range(0,len(self.all_blobs)):
 
-            part = "_part_{0:}.json".format(n+1)
+            part = "_part_{0:}".format(n+1)+self.suffix
 
             block_list = self.bbs.get_block_list(self.container,self.blob_name+part,block_list_type="all")
             ids =  list(set([x.id for x in block_list.committed_blocks] + [x.id for x in block_list.committed_blocks]))
@@ -140,10 +139,10 @@ class BlobWriter:
             threads = []
             for j in range(0,len(common_keys)):
 
-                t = Thread(target=self.bbs.put_block,args=(self.container,self.blob_name+part,io.StringIO(json.dumps(data[common_keys[j]])+"\r\n"),common_keys[j]))
+                t = Thread(target=self.bbs.put_block,args=(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[common_keys[j]])),common_keys[j]))
                 t.start()
                 threads.append(t)
-                #self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(json.dumps(data[common_keys[j]])+"\r\n"),common_keys[j])
+                #self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[common_keys[j]])),common_keys[j])
 
             while threads:
                 time.sleep(0.01)
@@ -160,7 +159,7 @@ class BlobWriter:
         #Try to write new record to one of the existing files...
         if data:
             for n in range(0,len(self.all_blobs)):
-                part = "_part_{0:}.json".format(n+1)
+                part = "_part_{0:}".format(n+1)+self.suffix
 
                 block_list = self.bbs.get_block_list(self.container,self.blob_name+part,block_list_type="all")
                 ids =  list(set([x.id for x in block_list.committed_blocks] + [x.id for x in block_list.committed_blocks]))
@@ -180,13 +179,13 @@ class BlobWriter:
                 threads = []
                 for j in range(0,max_ins):
                     key=keys[j]
-                    #self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(json.dumps(data[key])+"\r\n"),key)
+                    #self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[key])),key)
                     new_list.append(BlobBlock(key))
 
-                    t = Thread(target=self.bbs.put_block,args=(self.container,self.blob_name+part,io.StringIO(json.dumps(data[key])+"\r\n"),key))
+                    t = Thread(target=self.bbs.put_block,args=(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[key])),key))
                     t.start()
                     threads.append(t)
-                #self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(json.dumps(data[common_keys[j]])+"\r\n"),common_keys[j])
+                #self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[common_keys[j]])),common_keys[j])
 
                 while threads:
                     time.sleep(0.01)
@@ -204,7 +203,7 @@ class BlobWriter:
         while data:
             #Create new file and write record
             nn = len(self.all_blobs)+num_new
-            part = "_part_{0:}.json".format(nn)
+            part = "_part_{0:}".format(nn)+self.suffix
             self.all_blobs.append(self.blob_name+part)
             self.bbs.create_blob_from_text(self.container,self.blob_name+part,"")
             keys = list(data.keys())
@@ -213,10 +212,10 @@ class BlobWriter:
             used_keys = []
             threads = []
             for key in keys:
-                #self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(json.dumps(data[key])+"\r\n"),key)
+                #self.bbs.put_block(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[key])),key)
                 new_list.append(BlobBlock(key))
                 used_keys.append(key)
-                t = Thread(target=self.bbs.put_block,args=(self.container,self.blob_name+part,io.StringIO(json.dumps(data[key])+"\r\n"),key))
+                t = Thread(target=self.bbs.put_block,args=(self.container,self.blob_name+part,io.StringIO(self.out_fn(data[key])),key))
                 t.start()
                 threads.append(t)
 
@@ -248,7 +247,7 @@ if __name__=="__main__":
     partition_name = "test"
     key = "pkey"
 
-    bw = BlobWriter(acc_name,acc_key,container,partition_name,key,max_blocks=50000)
+    bw = BlobWriter(acc_name,acc_key,container,partition_name,key,suffix=".csv",max_blocks=50000)
     
 
 
@@ -259,8 +258,7 @@ if __name__=="__main__":
     data = {}
     t0=time.time()
 
-    num_msgs = 10000
-
+    num_msgs = 100
     num_sent=0
     for i in range(0,n):
 
