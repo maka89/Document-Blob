@@ -3,6 +3,7 @@ from azure.storage.blob import PageBlobService,BlockBlobService,BlobBlock,BlobBl
 import io
 import copy
 import requests
+import time
 
 from multiprocessing import Process
 from threading import Thread
@@ -251,7 +252,7 @@ if __name__=="__main__":
     
 
 
-    import time
+    
     n=10
     m=20000
     import numpy as np
