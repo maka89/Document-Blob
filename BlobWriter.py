@@ -241,7 +241,7 @@ class BlobWriter:
 
 if __name__=="__main__":
 
-    acc_name = "alekstest"
+    acc_name = ""
     acc_key = ""
     container = "dbtest"
     partition_name = "test"
