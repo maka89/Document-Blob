@@ -271,7 +271,7 @@ if __name__=="__main__":
 
         
 
-        bw.write_batch_threaded(json.dumps(datamsg))
+        bw.write_batch(json.dumps(datamsg))
 
         #time.sleep(0.01)
         num_sent += num_msgs
