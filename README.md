@@ -25,3 +25,6 @@ bw.write_batch(message)
 ```
 
 - message : json-formatted string. Should be a "list of structs"
+
+# Dependencies
+- azure-storage-blob==1.5.0
