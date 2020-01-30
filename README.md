@@ -1,5 +1,5 @@
 # Introduction
-The code in this library allows to use a container in azure blob storage as a Document Store, without splitting every document into a separate blob. This allows for good performance when bulk-loading data into PowerBI, a spark dataframe, a sql table etc..
+The code in this library allows to use a container in azure blob storage as a Document Store, without splitting every document into a separate blob. This allows for good performance when bulk-loading data into PowerBI, a spark dataframe, a sql table etc without having to worry about duplicate records/rows
 
  
 # Usage
