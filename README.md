@@ -7,6 +7,7 @@ The code in this library allows to use a container in azure blob storage as a Do
 
 Create BlobWriter object.
 ```python
+from blobwriter import BlobWriter
 bw = BlobWriter(acc_name,acc_key,container,partition_name,key,max_blocks=50000, out_fn=lambda x: json.dumps(x)+ "\n",suffix=".json")
 ```
 - acc_name : azure blob storage account name
